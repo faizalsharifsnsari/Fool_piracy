@@ -2,44 +2,103 @@ import hashlib
 import json
 import sqlite3
 import os
-
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string
 
 app = Flask(__name__)
 
 DATABASE = "licenses.db"
 
 
+# -----------------------------
+# DATABASE CONNECTION
+# -----------------------------
 def get_db():
     return sqlite3.connect(DATABASE)
 
 
+# -----------------------------
+# FINGERPRINT HASH
+# -----------------------------
 def fingerprint_hash(fp):
     return hashlib.sha256(json.dumps(fp, sort_keys=True).encode()).hexdigest()
 
 
-def fingerprint_score(stored, current):
+# -----------------------------
+# HOME PAGE (UI)
+# -----------------------------
+@app.route("/")
+def home():
 
-    score = 0
+    html = """
+    <h1>License Activation Server</h1>
+    <p>Status: Running</p>
 
-    if stored.get("cpu") == current.get("cpu"):
-        score += 30
+    <h2>Available Endpoints</h2>
+    <ul>
+        <li>/activate (POST)</li>
+        <li>/licenses</li>
+        <li>/logs</li>
+    </ul>
 
-    if stored.get("machine") == current.get("machine"):
-        score += 25
+    <p>This server verifies executable licenses and hardware fingerprints.</p>
+    """
 
-    if stored.get("system") == current.get("system"):
-        score += 15
-
-    if stored.get("node") == current.get("node"):
-        score += 10
-
-    if stored.get("mac") == current.get("mac"):
-        score += 20
-
-    return score
+    return render_template_string(html)
 
 
+# -----------------------------
+# VIEW LICENSES
+# -----------------------------
+@app.route("/licenses")
+def view_licenses():
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM licenses")
+
+    rows = cur.fetchall()
+    conn.close()
+
+    html = "<h1>Licenses</h1><table border=1>"
+    html += "<tr><th>License</th><th>Exe Hash</th><th>Activation Key</th><th>Fingerprint</th></tr>"
+
+    for r in rows:
+        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>"
+
+    html += "</table>"
+
+    return html
+
+
+# -----------------------------
+# VIEW ACTIVATION LOGS
+# -----------------------------
+@app.route("/logs")
+def view_logs():
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM activation_logs ORDER BY id DESC")
+
+    rows = cur.fetchall()
+    conn.close()
+
+    html = "<h1>Activation Logs</h1><table border=1>"
+    html += "<tr><th>ID</th><th>License</th><th>Fingerprint</th><th>Time</th></tr>"
+
+    for r in rows:
+        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>"
+
+    html += "</table>"
+
+    return html
+
+
+# -----------------------------
+# ACTIVATE LICENSE
+# -----------------------------
 @app.route("/activate", methods=["POST"])
 def activate():
 
@@ -74,6 +133,7 @@ def activate():
 
     # FIRST ACTIVATION
     if stored_fp_hash is None:
+
         cur.execute(
             "UPDATE licenses SET fingerprint_hash=? WHERE license_key=?",
             (current_fp_hash, license_key),
@@ -83,7 +143,9 @@ def activate():
 
     # FUTURE ACTIVATIONS
     else:
+
         if stored_fp_hash != current_fp_hash:
+
             conn.close()
 
             return jsonify(
@@ -107,6 +169,11 @@ def activate():
     )
 
 
+# -----------------------------
+# RUN SERVER
+# -----------------------------
 if __name__ == "__main__":
+
     port = int(os.environ.get("PORT", 5000))
+
     app.run(host="0.0.0.0", port=port)

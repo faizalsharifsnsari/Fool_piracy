@@ -13,7 +13,7 @@ import requests
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-SERVER_URL = "http://127.0.0.1:5000/activate"
+SERVER_URL = "https://fool-piracy.onrender.com/activate"
 BLOCK_SIZE = 1024
 
 
