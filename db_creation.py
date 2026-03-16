@@ -9,7 +9,7 @@ licenses = [
         "701b654ca7db4312802198380263d8c00847d8fc60ba47cfa14a3af072dc3b13",
         "QWER-TYUI-OPAS-DFGH",
         None,
-        "2026-12-31",
+        "2025-12-31",
     ),
     (
         "EEEE-FFFF-GGGG-HHHH",
