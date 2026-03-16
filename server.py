@@ -24,7 +24,7 @@ def fingerprint_hash(fp):
 
 
 # -----------------------------
-# HOME PAGE
+# HOME PAGE (UI)
 # -----------------------------
 @app.route("/")
 def home():
@@ -39,6 +39,8 @@ def home():
         <li>/licenses</li>
         <li>/logs</li>
     </ul>
+
+    <p>This server verifies executable licenses and hardware fingerprints.</p>
     """
 
     return render_template_string(html)
@@ -122,38 +124,35 @@ def activate():
 
     db_hash, activation_key, stored_fp_hash = row
 
+    # Verify executable hash
+    if exe_hash != db_hash:
+        conn.close()
+        return jsonify({"status": "error", "message": "Executable mismatch"})
+
     current_fp_hash = fingerprint_hash(hardware)
 
-    # -----------------------------
     # FIRST ACTIVATION
-    # -----------------------------
     if stored_fp_hash is None:
 
         cur.execute(
-            "UPDATE licenses SET fingerprint_hash=?, exe_hash=? WHERE license_key=?",
-            (current_fp_hash, exe_hash, license_key),
+            "UPDATE licenses SET fingerprint_hash=? WHERE license_key=?",
+            (current_fp_hash, license_key),
         )
 
         conn.commit()
 
-    # -----------------------------
     # FUTURE ACTIVATIONS
-    # -----------------------------
     else:
 
-        if exe_hash != db_hash:
-            conn.close()
-            return jsonify({"status": "error", "message": "Executable mismatch"})
-
         if stored_fp_hash != current_fp_hash:
+
             conn.close()
+
             return jsonify(
                 {"status": "error", "message": "Hardware fingerprint mismatch"}
             )
 
-    # -----------------------------
     # LOG ACTIVATION
-    # -----------------------------
     cur.execute(
         """
         INSERT INTO activation_logs (license_key, fingerprint_hash)
