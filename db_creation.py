@@ -6,7 +6,7 @@ DB_NAME = "licenses.db"
 licenses = [
     (
         "AAAA-BBBB-CCCC-DDDD",
-        "5b1015ea63c2f15eeeedf843a265c86e4dece2aac9da2c941401db3882488ab9",
+        "701b654ca7db4312802198380263d8c00847d8fc60ba47cfa14a3af072dc3b13",
         "QWER-TYUI-OPAS-DFGH",
         None,
     ),
