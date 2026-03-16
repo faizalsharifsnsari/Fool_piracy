@@ -2,6 +2,7 @@ import hashlib
 import json
 import sqlite3
 import os
+import datetime
 from flask import Flask, jsonify, request, render_template_string
 
 app = Flask(__name__)
@@ -61,10 +62,10 @@ def view_licenses():
     conn.close()
 
     html = "<h1>Licenses</h1><table border=1>"
-    html += "<tr><th>License</th><th>Exe Hash</th><th>Activation Key</th><th>Fingerprint</th></tr>"
+    html += "<tr><th>License</th><th>Exe Hash</th><th>Activation Key</th><th>Fingerprint</th><th>Expiry</th></tr>"
 
     for r in rows:
-        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>"
+        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td></tr>"
 
     html += "</table>"
 
@@ -112,7 +113,11 @@ def activate():
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT exe_hash, activation_key, fingerprint_hash FROM licenses WHERE license_key=?",
+        """
+        SELECT exe_hash, activation_key, fingerprint_hash, expiry_date
+        FROM licenses
+        WHERE license_key=?
+        """,
         (license_key,),
     )
 
@@ -122,16 +127,37 @@ def activate():
         conn.close()
         return jsonify({"status": "error", "message": "Invalid license key"})
 
-    db_hash, activation_key, stored_fp_hash = row
+    db_hash, activation_key, stored_fp_hash, expiry_date = row
 
-    # Verify executable hash
+    # -----------------------------
+    # EXECUTABLE INTEGRITY CHECK
+    # -----------------------------
     if exe_hash != db_hash:
         conn.close()
-        return jsonify({"status": "error", "message": "Executable mismatch"})
+        return jsonify({
+            "status": "error",
+            "message": "Executable integrity check failed. The program file may be modified or corrupted."
+        })
+
+    # -----------------------------
+    # LICENSE EXPIRY CHECK
+    # -----------------------------
+    if expiry_date:
+        today = datetime.datetime.utcnow().date()
+        expiry = datetime.datetime.strptime(expiry_date, "%Y-%m-%d").date()
+
+        if today > expiry:
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "License expired"
+            })
 
     current_fp_hash = fingerprint_hash(hardware)
 
+    # -----------------------------
     # FIRST ACTIVATION
+    # -----------------------------
     if stored_fp_hash is None:
 
         cur.execute(
@@ -141,18 +167,23 @@ def activate():
 
         conn.commit()
 
+    # -----------------------------
     # FUTURE ACTIVATIONS
+    # -----------------------------
     else:
 
         if stored_fp_hash != current_fp_hash:
 
             conn.close()
 
-            return jsonify(
-                {"status": "error", "message": "Hardware fingerprint mismatch"}
-            )
+            return jsonify({
+                "status": "error",
+                "message": "License already activated on another device"
+            })
 
+    # -----------------------------
     # LOG ACTIVATION
+    # -----------------------------
     cur.execute(
         """
         INSERT INTO activation_logs (license_key, fingerprint_hash)
@@ -165,7 +196,11 @@ def activate():
     conn.close()
 
     return jsonify(
-        {"status": "activated", "activation_key": activation_key, "expires_in": 3600}
+        {
+            "status": "activated",
+            "activation_key": activation_key,
+            "expires_in": 3600
+        }
     )
 
 
