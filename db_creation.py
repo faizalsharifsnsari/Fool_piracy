@@ -14,7 +14,7 @@ licenses = [
     ),
     (
         "EEEE-FFFF-GGGG-HHHH",
-        "be7f9aa1c374c2516730b0b083dc3e436c0f982d4db4638bfaf1c2db6059d94d",
+        "701b654ca7db4312802198380263d8c00847d8fc60ba47cfa14a3af072dc3b13",
         "ZXCV-BNMK-LKJH-GFDS",
         None,
         "2026-12-31",
