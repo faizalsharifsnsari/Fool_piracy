@@ -25,7 +25,7 @@ def fingerprint_hash(fp):
 
 
 # -----------------------------
-# HOME PAGE (UI)
+# HOME PAGE
 # -----------------------------
 @app.route("/")
 def home():
@@ -62,10 +62,10 @@ def view_licenses():
     conn.close()
 
     html = "<h1>Licenses</h1><table border=1>"
-    html += "<tr><th>License</th><th>Exe Hash</th><th>Activation Key</th><th>Fingerprint</th><th>Expiry</th></tr>"
+    html += "<tr><th>License</th><th>Exe Hash</th><th>Activation Key</th><th>Fingerprint</th><th>Expiry</th><th>Revoked</th></tr>"
 
     for r in rows:
-        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td></tr>"
+        html += f"<tr><td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td>{r[4]}</td><td>{r[5]}</td></tr>"
 
     html += "</table>"
 
@@ -114,7 +114,7 @@ def activate():
 
     cur.execute(
         """
-        SELECT exe_hash, activation_key, fingerprint_hash, expiry_date
+        SELECT exe_hash, activation_key, fingerprint_hash, expiry_date, revoked
         FROM licenses
         WHERE license_key=?
         """,
@@ -127,7 +127,8 @@ def activate():
         conn.close()
         return jsonify({"status": "error", "message": "Invalid license key"})
 
-    db_hash, activation_key, stored_fp_hash, expiry_date = row
+    db_hash, activation_key, stored_fp_hash, expiry_date, revoked = row
+
 
     # -----------------------------
     # EXECUTABLE INTEGRITY CHECK
@@ -138,6 +139,18 @@ def activate():
             "status": "error",
             "message": "Executable integrity check failed. The program file may be modified or corrupted."
         })
+
+
+    # -----------------------------
+    # LICENSE REVOCATION CHECK
+    # -----------------------------
+    if revoked == 1:
+        conn.close()
+        return jsonify({
+            "status": "error",
+            "message": "License has been revoked by the developer"
+        })
+
 
     # -----------------------------
     # LICENSE EXPIRY CHECK
@@ -153,7 +166,9 @@ def activate():
                 "message": "License expired"
             })
 
+
     current_fp_hash = fingerprint_hash(hardware)
+
 
     # -----------------------------
     # FIRST ACTIVATION
@@ -166,6 +181,7 @@ def activate():
         )
 
         conn.commit()
+
 
     # -----------------------------
     # FUTURE ACTIVATIONS
@@ -180,6 +196,7 @@ def activate():
                 "status": "error",
                 "message": "License already activated on another device"
             })
+
 
     # -----------------------------
     # LOG ACTIVATION

@@ -10,6 +10,7 @@ licenses = [
         "QWER-TYUI-OPAS-DFGH",
         None,
         "2025-12-31",
+        0,
     ),
     (
         "EEEE-FFFF-GGGG-HHHH",
@@ -17,6 +18,7 @@ licenses = [
         "ZXCV-BNMK-LKJH-GFDS",
         None,
         "2026-12-31",
+        1,
     ),
     (
         "IIII-JJJJ-KKKK-LLLL",
@@ -24,6 +26,7 @@ licenses = [
         "POIU-YTRE-WQAS-DFGH",
         None,
         "2026-12-31",
+        0,
     ),
 ]
 
@@ -39,7 +42,8 @@ def create_db():
         exe_hash TEXT NOT NULL,
         activation_key TEXT NOT NULL,
         fingerprint_hash TEXT,
-        expiry_date TEXT
+        expiry_date TEXT,
+        revoked INTEGER DEFAULT 0
     )
     """)
 
@@ -65,8 +69,8 @@ def insert_licenses():
     cur.executemany(
         """
         INSERT OR IGNORE INTO licenses
-        (license_key, exe_hash, activation_key, fingerprint_hash, expiry_date)
-        VALUES (?, ?, ?, ?, ?)
+        (license_key, exe_hash, activation_key, fingerprint_hash, expiry_date, revoked)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         licenses,
     )
